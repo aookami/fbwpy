@@ -19,24 +19,24 @@ avyConst = 1
 onOffState = False
 joyValMem = 0.05
 
+
 def thread_socket_listener():
     print("Socket listener thread starting")
     global gameData 
-    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp.bind(('localhost' , 8075))
-    tcp.listen(1)
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.bind(('localhost' , 8075))
 
     print("started listening on socket")
     while True:
-        connection, connectedAddress = tcp.accept()
-        print ('dcs has connected to the socket at ' + str(connectedAddress))
+        print ('dcs has connected to the socket ')
         while True:
-            msg = connection.recv(512)
+            msg = udp.recvfrom(1024)
+            print(str(msg))
             gameData = str(msg)
             if(msg==''):
                 break
-        print ('Ending connection', str(connectedAddress))
-        connection.close()
+        print ('Ending connection', str(udp))
+        udp.close()
         print("Socket listener thread finishing")
 
 def thread_fbw_logic():
@@ -49,24 +49,34 @@ def thread_fbw_logic():
     pygame.joystick.init()
     twcsNumber = 0
     for x in range(0, pygame.joystick.get_count()):
-        if pygame.joystick.Joystick(x).get_name().__eq__('TWCS Throttle'):
+        if pygame.joystick.Joystick(x).get_name().__eq__('Thrustmaster FFB Wheel'):
             twcsNumber = x
-    print("twcs is " + str(twcsNumber))
+    print("wheel is " + str(twcsNumber))
     joyy = pygame.joystick.Joystick(twcsNumber)
     joyy.init()
-    print ("Init Joystick name: ", joyy.get_name())
+    joy2number = 0
+    for x in range(0, pygame.joystick.get_count()):
+        if pygame.joystick.Joystick(x).get_name().__eq__('Throttle - HOTAS Warthog'):
+            joy2number = x
+    print("throttle is " + str(joy2number))
+    joyy2 = pygame.joystick.Joystick(joy2number)
+    joyy2.init()
+    wheelAxisNumber = 1
+    throttleButtonNumber = 31
+    print ("Init Wheel name: ", joyy.get_name())
+    print ("Init Throttle name: ", joyy2.get_name())
     while True:
         time.sleep(0.02)
         if gameData != "":
-            if(joyy.get_button(12)):
+            if(joyy2.get_button(throttleButtonNumber)):
                 onOffState = not onOffState
                 time.sleep(0.3)
             gameInfoDict = dataStrToGameInfoDict(gameData)
             pygame.event.pump()
             if(onOffState):
-                val = normalizeToHex(calculateJoyValToKillAvy(gameInfoDict, joyy.get_axis(5)))
+                val = normalizeToHex(calculateJoyValToKillAvy(gameInfoDict, joyy.get_axis(wheelAxisNumber)))
             else:
-                val = normalizeToHex(joyy.get_axis(5))
+                val = normalizeToHex(joyy.get_axis(wheelAxisNumber))
             if 0 < int(val) < 32750:
                 vJoy.set_axis(pyvjoy.HID_USAGE_X, val)
             
